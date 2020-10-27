@@ -14,8 +14,25 @@
 int detachandremove(int shmid, void *shmaddr);
 void displayhelpinfo();
 
+/* Process Control Block structure */
+struct pcb
+{
+  int cputime;    // Time on CPU
+  int systemtime; // Time in system
+  int recenttime; // Time used in recent burst
+  int pid;        // Process ID
+  int priority;   // Process priorty (user process / real-time process)
+};
+
 int main(int argc, char **argv)
 {
+  /* 0 = Available, 1 = Taken */
+  int bitvector[18] = { 0 }; // Array used to track which PID / PCBs are taken in shared memory
+
+  struct pcb *shmpcbs; // Array to store PCBs in shared memory
+  int shmpcbsid;       // ID for shared memory PCBs
+  key_t shmpcbskey;    // Key to use in creation of PCBs shared memory
+
   int *clocknano;     // Shared memory clock nanoseconds
   int clocknanoid;    // ID for shared memory clock nanoseconds
   key_t clocknanokey; // Key to use in creation of nanoseconds shared memory
@@ -60,7 +77,7 @@ int main(int argc, char **argv)
 
 
   // IDs
-  if ((clocknanoid = shmget(clocknanoid, sizeof(unsigned int *), IPC_CREAT | 0660)) == -1)
+  if ((clocknanoid = shmget(clocknanokey, sizeof(unsigned int *), IPC_CREAT | 0660)) == -1)
   {
     perror("Failed to create shared memory segment.");
     return 1;
@@ -73,27 +90,59 @@ int main(int argc, char **argv)
   }
 
   // Attach to shared memory segments
-  if ((clocknano = (int *) shmat(clocknanoid, NULL, 0)) == (void *) - 1)
+  if ((clocknano = (unsigned int *) shmat(clocknanoid, NULL, 0)) == (void *) - 1)
   {
     perror("Failed to attach shared memory segment.");
     if (shmctl(clocknanoid, IPC_RMID, NULL) == -1)
       perror("Failed to remove memory segment.");
     return 1;
   }
-  printf("Successfully attached to clocknano shared memory!\n");
   
-  if ((clocksec = (int *) shmat(clocksecid, NULL, 0)) == (void *) - 1)
+  if ((clocksec = (unsigned int *) shmat(clocksecid, NULL, 0)) == (void *) - 1)
   {
     perror("Failed to attach shared memory segment.");
     if (shmctl(clocksecid, IPC_RMID, NULL) == -1)
       perror("Failed to remove memory segment.");
     return 1;
   }
-  printf("Successfully attached to clocksec shared memory!\n");
+
+
+  // Initialize Clock
+  *clocknano = 0;
+  *clocksec = 0;
 
 
 
-  printf("test\n");
+
+  /* * * SETUP SHARED MEMORY PCB ARRAY * * */
+  if ((shmpcbskey = ftok("keys.txt", 'C')) == -1)
+  {
+    perror("ftok");
+    exit(1);
+  }
+
+  if ((shmpcbsid = shmget(shmpcbskey, sizeof(struct pcb) * 18, IPC_CREAT | 0660)) == -1)
+  {
+    perror("Failed to create shared memory segment.");
+    return 1;
+  }
+
+  if ((shmpcbs = (struct pcb *) shmat(shmpcbsid, NULL, 0)) == (void *) - 1)
+  {
+    perror("Failed to attach shared memory segment.");
+    if (shmctl(clocksecid, IPC_RMID, NULL) == -1)
+      perror("Failed to remove memory segment.");
+    return 1;
+  }
+
+
+
+
+
+
+
+
+
 
 
   /* * * CLEAN UP * * */
@@ -101,9 +150,10 @@ int main(int argc, char **argv)
   // Remove dummy txt file used to create keys
   system("rm keys.txt");
 
-  // Detach and remove shared clock
+  // Detach and remove shared memory segments
   detachandremove(clocknanoid, clocknano);
   detachandremove(clocksecid, clocksec);
+  detachandremove(shmpcbsid, shmpcbs);
 
   return 0;
 }
