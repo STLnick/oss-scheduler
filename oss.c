@@ -40,8 +40,70 @@ int main(int argc, char **argv)
     }
   }
 
+  // Create dummy txt file to create a key with ftok
+  system("touch keys.txt");
+
+  /* * * SETUP SHARED MEMORY CLOCK * * */
+
+  // Keys
+  if ((clocknanokey = ftok("keys.txt", 'A')) == -1)
+  {
+    perror("ftok");
+    exit(1);
+  }
+  
+  if ((clockseckey = ftok("keys.txt", 'B')) == -1)
+  {
+    perror("ftok");
+    exit(1);
+  }
+
+
+  // IDs
+  if ((clocknanoid = shmget(clocknanoid, sizeof(unsigned int *), IPC_CREAT | 0660)) == -1)
+  {
+    perror("Failed to create shared memory segment.");
+    return 1;
+  }
+
+  if ((clocksecid = shmget(clockseckey, sizeof(unsigned int *), IPC_CREAT | 0660)) == -1)
+  {
+    perror("Failed to create shared memory segment.");
+    return 1;
+  }
+
+  // Attach to shared memory segments
+  if ((clocknano = (int *) shmat(clocknanoid, NULL, 0)) == (void *) - 1)
+  {
+    perror("Failed to attach shared memory segment.");
+    if (shmctl(clocknanoid, IPC_RMID, NULL) == -1)
+      perror("Failed to remove memory segment.");
+    return 1;
+  }
+  printf("Successfully attached to clocknano shared memory!\n");
+  
+  if ((clocksec = (int *) shmat(clocksecid, NULL, 0)) == (void *) - 1)
+  {
+    perror("Failed to attach shared memory segment.");
+    if (shmctl(clocksecid, IPC_RMID, NULL) == -1)
+      perror("Failed to remove memory segment.");
+    return 1;
+  }
+  printf("Successfully attached to clocksec shared memory!\n");
+
+
+
   printf("test\n");
 
+
+  /* * * CLEAN UP * * */
+
+  // Remove dummy txt file used to create keys
+  system("rm keys.txt");
+
+  // Detach and remove shared clock
+  detachandremove(clocknanoid, clocknano);
+  detachandremove(clocksecid, clocksec);
 
   return 0;
 }
