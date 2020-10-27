@@ -33,8 +33,10 @@ int main(int argc, char **argv)
   /* 0 = Available, 1 = Taken */
   int bitvector[18] = { 0 }; // Array used to track which PID / PCBs are taken in shared memory
 
-  unsigned int delaynano; // Nanoseconds to delay before spawning new child
-  unsigned int delaysec;  // Seconds to delay before spawning new child
+  FILE *logptr; // File pointer for logfile
+
+  unsigned int delaynano = 0; // Nanoseconds to delay before spawning new child
+  unsigned int delaysec = 0;  // Seconds to delay before spawning new child
 
   struct pcb *shmpcbs; // Array to store PCBs in shared memory
   int shmpcbsid;       // ID for shared memory PCBs
@@ -63,6 +65,9 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
   }
+
+  // Open logfile for writing
+  logptr = fopen("output.log", "a");
 
   // Create dummy txt file to create a key with ftok
   system("touch keys.txt");
@@ -149,14 +154,17 @@ int main(int argc, char **argv)
   // TESTING GENERATION OF RANDOM DELAY
   printf("nano delay: %u\n", delaynano);
   printf("sec delay: %u\n", delaysec);
-  generaterandomdelay(&delaynano, &delaysec, MAX_TIME_BETWEEN_PROCS_NS, MAX_TIME_BETWEEN_PROCS_SEC);
+  generaterandomtime(&delaynano, &delaysec, MAX_TIME_BETWEEN_PROCS_NS, MAX_TIME_BETWEEN_PROCS_SEC);
   printf("nano delay: %u\n", delaynano);
   printf("sec delay: %u\n", delaysec);
 
 
-
+  fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
 
   /* * * CLEAN UP * * */
+
+  // Close logfile
+  fclose(logptr);
 
   // Remove dummy txt file used to create keys
   system("rm keys.txt");
