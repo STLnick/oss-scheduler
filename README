@@ -1,0 +1,30 @@
+OS Project 3
+Operating System Simulator - Scheduler
+
+Version Control:
+GitHub repo: https://github.com/STLnick/oss-scheduler
+
+
+To run the program:
+First run 'make' to build 'oss' and 'user'
+
+Run command example:
+
+Program options:
+
+
+Default value information:
+
+
+What Works:
+
+
+What Doesn't Work:
+
+
+Uncertainties:
+
+
+Commit Log:
+(All commits also on GitHub: https://github.com/STLnick/oss-scheduler)
+
