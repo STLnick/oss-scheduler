@@ -11,8 +11,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define MAX_TIME_BETWEEN_PROCS_NS 500000000
+#define MAX_TIME_BETWEEN_PROCS_SEC 1
+
 int detachandremove(int shmid, void *shmaddr);
 void displayhelpinfo();
+void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxnano, unsigned int maxsec);
 
 /* Process Control Block structure */
 struct pcb
@@ -21,13 +25,16 @@ struct pcb
   int systemtime; // Time in system
   int recenttime; // Time used in recent burst
   int pid;        // Process ID
-  int priority;   // Process priorty (user process / real-time process)
+  int priority;   // Process priorty (0 = real-time process / 1 = user-process)
 };
 
 int main(int argc, char **argv)
 {
   /* 0 = Available, 1 = Taken */
   int bitvector[18] = { 0 }; // Array used to track which PID / PCBs are taken in shared memory
+
+  unsigned int delaynano; // Nanoseconds to delay before spawning new child
+  unsigned int delaysec;  // Seconds to delay before spawning new child
 
   struct pcb *shmpcbs; // Array to store PCBs in shared memory
   int shmpcbsid;       // ID for shared memory PCBs
@@ -135,12 +142,16 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  // EXAMPLES OF ACCESSING SHARED MEMORY PCBS
+  // shmpcbs[0].cputime = 666;
+  // shmpcbs[0].systemtime = 1000;
 
-
-
-
-
-
+  // TESTING GENERATION OF RANDOM DELAY
+  printf("nano delay: %u\n", delaynano);
+  printf("sec delay: %u\n", delaysec);
+  generaterandomdelay(&delaynano, &delaysec, MAX_TIME_BETWEEN_PROCS_NS, MAX_TIME_BETWEEN_PROCS_SEC);
+  printf("nano delay: %u\n", delaynano);
+  printf("sec delay: %u\n", delaysec);
 
 
 
@@ -188,4 +199,24 @@ int detachandremove(int shmid, void *shmaddr)
   errno = error;
   perror("Error: ");
   return -1;
+}
+
+// Generates a random number using 'maxnano' and 'maxsec' as the upper limit of number generated
+// which will store an appropriate number in 'nano' and 'sec' for time between processes, time
+// it takes to 'schedule' a process, and the time quantum a process is given
+void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxnano, unsigned int maxsec)
+{
+  int maxpossibletimenano = maxnano + (maxsec * 1000000000);
+  int randomtime = random() % maxpossibletimenano;
+
+  if (randomtime > 1000000000)
+  {
+    *sec = 1;
+    *nano = randomtime - 1000000000;
+  }
+  else
+  {
+    *sec = 0;
+    *nano = randomtime;
+  }
 }
