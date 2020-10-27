@@ -72,6 +72,9 @@ int main(int argc, char **argv)
   // Create dummy txt file to create a key with ftok
   system("touch keys.txt");
 
+
+
+
   /* * * SETUP SHARED MEMORY CLOCK * * */
 
   // Keys
@@ -160,6 +163,14 @@ int main(int argc, char **argv)
 
 
   fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
+
+  // TODO: Need to setup the message queue
+  // TODO: After msgqueue setup need to test using one child proc
+  // TODO: Clarify the structure of the PCB for a child
+
+
+
+
 
   /* * * CLEAN UP * * */
 
