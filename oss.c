@@ -18,9 +18,14 @@ int detachandremove(int shmid, void *shmaddr);
 void displayhelpinfo();
 void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxnano, unsigned int maxsec);
 
+/* Message Queue structure */
+struct msgbuf {
+  long mtype;
+  char mtext[100];
+};
+
 /* Process Control Block structure */
-struct pcb
-{
+struct pcb {
   int cputime;    // Time on CPU
   int systemtime; // Time in system
   int recenttime; // Time used in recent burst
@@ -34,6 +39,10 @@ int main(int argc, char **argv)
   int bitvector[18] = { 0 }; // Array used to track which PID / PCBs are taken in shared memory
 
   FILE *logptr; // File pointer for logfile
+
+  struct msgbuf buf;  // Struct used for message queue
+  int msgid;          // ID for allocated message queue
+  key_t msgkey;       // Key to use in creation of message queue
 
   unsigned int delaynano = 0; // Nanoseconds to delay before spawning new child
   unsigned int delaysec = 0;  // Seconds to delay before spawning new child
@@ -121,16 +130,41 @@ int main(int argc, char **argv)
     return 1;
   }
 
-
   // Initialize Clock
   *clocknano = 0;
   *clocksec = 0;
 
 
 
+  /* * * SETUP MESSAGE QUEUE * * */
+  // Create key to allocate message queue
+  if ((msgkey = ftok("keys.txt", 'C')) == -1)
+  {
+    perror("ftok");
+    exit(1);
+  }
+
+  // Allocate message queue and store returned ID
+  if ((msgid = msgget(msgkey, PERMS | IPC_CREAT)) == -1)
+  {
+    perror("msgget: ");
+    exit(1);
+  }
+
+  buf.mtype = 1;
+  strcpy(buf.mtext, "testing");
+  len = strlen(buf.mtext);
+
+  // TEST MESSAGE - - - -
+  if (msgsnd(msgid, &buf, len+1, 0) == -1)
+    perror("msgsnd:");
+  
+
+
+
 
   /* * * SETUP SHARED MEMORY PCB ARRAY * * */
-  if ((shmpcbskey = ftok("keys.txt", 'C')) == -1)
+  if ((shmpcbskey = ftok("keys.txt", 'D')) == -1)
   {
     perror("ftok");
     exit(1);
@@ -179,6 +213,13 @@ int main(int argc, char **argv)
 
   // Remove dummy txt file used to create keys
   system("rm keys.txt");
+
+  // Remove message queue
+  if (msgctl(msgid, IPC_RMID, NULL) == -1)
+  {
+    perror("msgctl: ");
+    exit(1);
+  }
 
   // Detach and remove shared memory segments
   detachandremove(clocknanoid, clocknano);
