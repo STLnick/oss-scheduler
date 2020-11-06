@@ -29,6 +29,7 @@ int main (int argc, char **argv)
   int *clocksec;                   // Shared memory segment for clock seconds
   int clocksecid = atoi(argv[0]);  // ID for shared memory clock seconds segment
 
+  int len;           // Holds length of mtext to use in msgsnd invocation
   struct msgbuf buf; // Struct for message queue
   int msgid;         // ID for message queue
   key_t msgkey;      // Key for message queue
@@ -71,7 +72,7 @@ int main (int argc, char **argv)
 
 
   // Receive a message from the queue
-  if(msgrcv(msgid, &buf, sizeof(buf.mtext), 0, 0) == -1)
+  if(msgrcv(msgid, &buf, sizeof(buf.mtext), 1, 0) == -1)
   {
     perror("user.c - msgrcv");
     exit(1);
@@ -81,6 +82,23 @@ int main (int argc, char **argv)
   // TODO: TESTING -- incrementing by a hard-coded value instead of randomly generated one
   *clocksec += 2;
   printf("Child incremented clocksec by 2!\n");
+
+
+
+  // Send message
+  // TODO: Make this message tell ./oss if 
+  //         1) Terminating
+  //         2) Ran for whole time quantam (move down level in queues)
+  //         3) Ran for PART of time quantam (put in blocked queue)
+
+  buf.mtype = 99;
+  strcpy(buf.mtext, "child msg");
+  len = strlen(buf.mtext);
+
+  if (msgsnd(msgid, &buf, len+1, 0) == -1)
+    perror("msgsnd:");
+
+
 
 
   /* * CLEAN UP * */
