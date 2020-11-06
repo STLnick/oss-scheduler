@@ -78,6 +78,11 @@ int main (int argc, char **argv)
   }
 
 
+  // TODO: TESTING -- incrementing by a hard-coded value instead of randomly generated one
+  *clocksec += 2;
+  printf("Child incremented clocksec by 2!\n");
+
+
   /* * CLEAN UP * */
   // Detach from all shared memory segments
   detach(clocksecid, clocksec);
@@ -96,7 +101,7 @@ int detach(int shmid, void *shmaddr)
     error = errno;
   if (!error)
   {
-    printf("CHILD: Successfully detached from the shared memory segment - id: %d\n", shmid);
+    //printf("CHILD: Successfully detached from the shared memory segment - id: %d\n", shmid);
     return 0;
   }
   errno = error;
