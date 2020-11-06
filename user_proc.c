@@ -21,8 +21,10 @@ struct msgbuf {
 
 int main (int argc, char **argv)
 {
-
   printf("::Begin:: Child Process\n");
+
+  unsigned int tq;      // Time Quantam allowed by scheduler
+  unsigned int tq_used; // Portion of Time Quantam used in sec/nanosec
 
   int *clocknano;                  // Shared memory segment for clock nanoseconds
   int clocknanoid = atoi(argv[1]); // ID for shared memory clock nanoseconds segment
@@ -71,17 +73,15 @@ int main (int argc, char **argv)
   }
 
 
-  // Receive a message from the queue
+  // RECEIVE message from the queue
   if(msgrcv(msgid, &buf, sizeof(buf.mtext), 1, 0) == -1)
   {
     perror("user.c - msgrcv");
     exit(1);
   }
 
-
-  // TODO: TESTING -- incrementing by a hard-coded value instead of randomly generated one
-  *clocksec += 2;
-  printf("Child incremented clocksec by 2!\n");
+  // Extract time quantam sent from message sent by 'scheduler'
+  tq = (unsigned int) atoi(buf.mtext);
 
 
 
@@ -91,14 +91,53 @@ int main (int argc, char **argv)
   //         2) Ran for whole time quantam (move down level in queues)
   //         3) Ran for PART of time quantam (put in blocked queue)
 
-  unsigned int exectime = 100000;
-  char strexectime[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
-  sprintf(strexectime, "%u", exectime); 
 
+
+  // 0-5 = terminate
+  // 6-25 = ran for partial tq (blocked now)
+  // 26-99 = ran for FULL tq
+
+  // Seed random number generator
+  srand((unsigned int) getpid());
+
+  // May need to provide a seed somehow to ensure different rands from processes.....  
+  int randnum = rand() % 100;
+  
+  // TESTING
+  printf("%d randnum: %d\n", getpid(), randnum);
+
+  if (randnum > 0 && randnum <= 5)
+  {
+    // TODO: TERMINATE
+    printf("terminate...\n");
+    tq_used = 0;
+  }
+  else if (randnum > 5 && randnum <= 25)
+  {
+    // RAN PARTIALLY - BLOCKED NOW
+    tq_used = rand() % tq;
+  }
+  else if (randnum > 25 && randnum <= 99)
+  {
+    // RAN FOR ALL OF TQ
+    tq_used = tq;
+  }
+  else
+  {
+    printf("Something went wrong.....");
+    exit(1);
+  }
+
+  // Convert time quantam used to a string
+  char strtq_used[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
+  sprintf(strtq_used, "%u", tq_used); 
+
+  // Setup message to send
   buf.mtype = 99;
-  strcpy(buf.mtext, strexectime);
+  strcpy(buf.mtext, strtq_used);
   len = strlen(buf.mtext);
 
+  // SEND message
   if (msgsnd(msgid, &buf, len+1, 0) == -1)
     perror("msgsnd:");
 
