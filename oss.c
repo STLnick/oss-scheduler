@@ -215,7 +215,7 @@ int main(int argc, char **argv)
   int j; // TODO: remove this var and the for loop after testing
   unsigned int dispatchtime = 2500; // TODO: Change this to be a random value NOT HARD CODED
   unsigned int tq = 50000;          // The time a 'scheduled' process may run at max -- TODO: Change this to be a random value NOT HARD CODED
-  unsigned int tq_used = 50000;     // Time used of a child's time quantam -- TODO: Change this to be a random value NOT HARD CODED
+
 
   for (j = 0; j < 5; j++) 
   {
@@ -260,11 +260,25 @@ int main(int argc, char **argv)
     // Write to logfile
     fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
 
-    
-    // Increment clock with base number
-    *clocksec += 1;
+    // IF the process ran for its total time quantam
+    if (exectime == tq)
+    {
+      // TODO: Dynamically determine queue number moving into
+      fprintf(logptr, "OSS: Putting process with PID %d into Queue 2\n", childpid, exectime);
+    }
+    // IF the process got blocked during execution
+    else if (exectime != tq)
+    {
+      fprintf(logptr, "OSS: NOT using its entire time quantam\n");
+      fprintf(logptr, "OSS: Putting process with PID %d into the Blocked Queue\n", childpid);
+    }
+    // IF the process terminated
+    else
+    {
+      // TODO: Process Terminated Logic (maybe use a neg number and take abs value to indicate it terminated and still get tq_used
+    }
   }
-
+  /***** END FOR LOOP *****/
 
 
   /*
@@ -387,9 +401,13 @@ void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxn
 
 void scheduleprocess(struct msgbuf *buf, int *len, int msgid, unsigned int dispatchtime, int childpid, unsigned int *clocksec, unsigned int *clocknano, FILE *logptr)
 {
+  // TODO: Generate and store random time quantam
+
+  // TODO: Create string from random time quantam to use in msg queue
+
   // Setup message
   buf->mtype = 1;  // TODO: Make the mtype represent which PID/process to send msg to out of bitvector
-  strcpy(buf->mtext, "testing");
+  strcpy(buf->mtext, "50000");
   *len = strlen(buf->mtext);
 
   // SEND message into queue
