@@ -15,10 +15,6 @@
 #define MAX_TIME_BETWEEN_PROCS_SEC 1
 #define PERMS 0664
 
-int detachandremove(int shmid, void *shmaddr);
-void displayhelpinfo();
-void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxnano, unsigned int maxsec);
-
 /* Message Queue structure */
 struct msgbuf {
   long mtype;
@@ -33,6 +29,11 @@ struct pcb {
   int pid;        // Process ID
   int priority;   // Process priorty (0 = real-time process / 1 = user-process)
 };
+
+int detachandremove(int shmid, void *shmaddr);
+void displayhelpinfo();
+void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxnano, unsigned int maxsec);
+void scheduleprocess(struct msgbuf *buf, int *len, int msgid);
 
 int main(int argc, char **argv)
 {
@@ -195,15 +196,6 @@ int main(int argc, char **argv)
   //fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
 
 
-  // TEST MESSAGE - - - -
-  buf.mtype = 1;
-  strcpy(buf.mtext, "testing");
-  len = strlen(buf.mtext);
-
-  if (msgsnd(msgid, &buf, len+1, 0) == -1)
-    perror("msgsnd:");
-
-
   
   // Create strings from IDs for exec-ing children
   char strclocksecid[100+1] = {'\0'}; // Create string from shared memory clock seconds id
@@ -225,7 +217,7 @@ int main(int argc, char **argv)
     }
 
     // Write to logfile
-    fprintf(logptr, "OSS: Generating process with PID %d and putting it in queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
+    fprintf(logptr, "OSS: Generating process with PID %d and putting it in Queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
 
 
     // Child Code
@@ -237,13 +229,20 @@ int main(int argc, char **argv)
     }
 
     // Parent Code
-    wait(NULL);
+ 
+    // TODO: Determine if the random time for next process spawn has passed by tracking shared clock
+    // TODO: IF SO -- fork() a new process, new PCB, etc -- ELSE (continue)
+   
+    scheduleprocess(&buf, &len, msgid);
 
-    if (msgsnd(msgid, &buf, len+1, 0) == -1)
-      perror("msgsnd:");
 
+
+    // TODO: Take info on if child did (1), (2), or (3) as exit
+    // TODO: Apply that childs time quantam - or part used - to shared clock
+
+    
+    // Increment clock
     *clocksec += 1;
-    printf("%i: Clock Seconds: %d\n", j, *clocksec);
   }
 
 
@@ -364,4 +363,26 @@ void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxn
     *sec = 0;
     *nano = randomtime;
   }
+}
+
+void scheduleprocess(struct msgbuf *buf, int *len, int msgid)
+{
+  // SEND message into queue
+  buf->mtype = 1;
+  strcpy(buf->mtext, "testing");
+  *len = strlen(buf->mtext);
+
+  if (msgsnd(msgid, buf, (*len)+1, 0) == -1)
+    perror("msgsnd:");
+
+  printf("About to msgrcv...\n");
+
+  // RECEIVE a message from the queue
+  if(msgrcv(msgid, buf, sizeof(buf->mtext), 99, 0) == -1)
+  {
+    perror("ERROR::OSS - msgrcv");
+    exit(1);
+  }
+
+  printf("msgrcv from child!!!\n");
 }
