@@ -248,13 +248,20 @@ int main(int argc, char **argv)
    
     scheduleprocess(&buf, &len, msgid, dispatchtime, childpid, clocksec, clocknano, logptr);
 
+    // Store time ran from child  --> TODO: Will need to restructure to include 'x 10000' where x = terminate, ran all, ran some now blocked
+    unsigned int exectime = (unsigned int) atoi(buf.mtext);
 
     // TODO: Take info on if child did (1), (2), or (3) as exit
-    //        -- Access message after 'scheduleprocess' with `buf.mtext`
-    // TODO: Apply that childs time quantam - or part used - to shared clock
+
+
+    // Apply that childs time quantam - or part used - to shared clock
+    *clocknano += exectime;
+
+    // Write to logfile
+    fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
 
     
-    // Increment clock
+    // Increment clock with base number
     *clocksec += 1;
   }
 
