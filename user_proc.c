@@ -33,7 +33,6 @@ int main (int argc, char **argv)
   int msgid;         // ID for message queue
   key_t msgkey;      // Key for message queue
 
-  printf("::Variables Setup::\n");
 
   // TODO: Generate random number to 'choose' outcome:
   //         1. Terminate - send msg with time ran before terminating
@@ -56,8 +55,6 @@ int main (int argc, char **argv)
     exit(1);
   }
 
-  printf("::Message Queue Setup::\n");
-
 
   /* * SHARED MEMORY * */
   if ((clocksec = (int *) shmat(clocksecid, NULL, 0)) == (void *) -1)
@@ -73,16 +70,12 @@ int main (int argc, char **argv)
   }
 
 
-  //printf("::Shared Clock Setup::\n");
-
   // Receive a message from the queue
   if(msgrcv(msgid, &buf, sizeof(buf.mtext), 0, 0) == -1)
   {
     perror("user.c - msgrcv");
     exit(1);
   }
-
-  printf("Received Message: %s\n", buf.mtext);
 
 
   /* * CLEAN UP * */
@@ -98,10 +91,6 @@ int main (int argc, char **argv)
 int detach(int shmid, void *shmaddr)
 {
   int error = 0;
-
-  // TESTING
-  printf("shmid: %d\n", shmid);
-  printf("shmaddr: %p\n", shmaddr);
 
   if (shmdt(shmaddr) == -1)
     error = errno;
