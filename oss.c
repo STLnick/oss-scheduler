@@ -33,7 +33,7 @@ struct pcb {
 int detachandremove(int shmid, void *shmaddr);
 void displayhelpinfo();
 void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxnano, unsigned int maxsec);
-void scheduleprocess(struct msgbuf *buf, int *len, int msgid);
+void scheduleprocess(struct msgbuf *buf, int *len, int msgid, unsigned int dispatchtime, int childpid, unsigned int *clocksec, unsigned int *clocknano, FILE *logptr);
 
 int main(int argc, char **argv)
 {
@@ -206,7 +206,16 @@ int main(int argc, char **argv)
 
 
 
+
+  /* * * * * * * * * * * * */
+  /* * *   MAIN LOOP   * * */
+  /* * * * * * * * * * * * */
+
+
   int j; // TODO: remove this var and the for loop after testing
+  unsigned int dispatchtime = 2500; // TODO: Change this to be a random value NOT HARD CODED
+  unsigned int tq = 50000;          // The time a 'scheduled' process may run at max -- TODO: Change this to be a random value NOT HARD CODED
+  unsigned int tq_used = 50000;     // Time used of a child's time quantam -- TODO: Change this to be a random value NOT HARD CODED
 
   for (j = 0; j < 5; j++) 
   {
@@ -216,11 +225,9 @@ int main(int argc, char **argv)
       exit(1);
     }
 
-    // Write to logfile
-    fprintf(logptr, "OSS: Generating process with PID %d and putting it in Queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
 
 
-    // Child Code
+    /* * *   Child Code   * * */
     if (childpid == 0)
     {
       execl("./user_proc", strclocksecid, strclocknanoid, '\0');
@@ -228,16 +235,22 @@ int main(int argc, char **argv)
       exit(1);
     }
 
-    // Parent Code
+
+    /* * *   Parent Code   * * */
+
+    // Write to logfile
+    fprintf(logptr, "OSS: Generating process with PID %d and putting it in Queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
  
     // TODO: Determine if the random time for next process spawn has passed by tracking shared clock
     // TODO: IF SO -- fork() a new process, new PCB, etc -- ELSE (continue)
-   
-    scheduleprocess(&buf, &len, msgid);
 
+
+   
+    scheduleprocess(&buf, &len, msgid, dispatchtime, childpid, clocksec, clocknano, logptr);
 
 
     // TODO: Take info on if child did (1), (2), or (3) as exit
+    //        -- Access message after 'scheduleprocess' with `buf.mtext`
     // TODO: Apply that childs time quantam - or part used - to shared clock
 
     
@@ -365,17 +378,26 @@ void generaterandomtime(unsigned int *nano, unsigned int *sec, unsigned int maxn
   }
 }
 
-void scheduleprocess(struct msgbuf *buf, int *len, int msgid)
+void scheduleprocess(struct msgbuf *buf, int *len, int msgid, unsigned int dispatchtime, int childpid, unsigned int *clocksec, unsigned int *clocknano, FILE *logptr)
 {
-  // SEND message into queue
-  buf->mtype = 1;
+  // Setup message
+  buf->mtype = 1;  // TODO: Make the mtype represent which PID/process to send msg to out of bitvector
   strcpy(buf->mtext, "testing");
   *len = strlen(buf->mtext);
 
-  if (msgsnd(msgid, buf, (*len)+1, 0) == -1)
+  // SEND message into queue
+  if (msgsnd(msgid, buf, (*len)+1, IPC_NOWAIT) == -1)
     perror("msgsnd:");
 
-  printf("About to msgrcv...\n");
+  // Increase clock by `dispatchtime`
+  *clocknano += dispatchtime;
+
+  // Write to logfile "Dispatching process...."
+  fprintf(logptr, "OSS: Dispatching process with PID %d and from Queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
+
+  // Write to logifle "total time this dispatch...."
+  fprintf(logptr, "OSS: -> total time spent in dispatch was %u nanoseconds\n", dispatchtime);
+  
 
   // RECEIVE a message from the queue
   if(msgrcv(msgid, buf, sizeof(buf->mtext), 99, 0) == -1)
@@ -384,5 +406,4 @@ void scheduleprocess(struct msgbuf *buf, int *len, int msgid)
     exit(1);
   }
 
-  printf("msgrcv from child!!!\n");
 }
