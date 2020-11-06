@@ -194,13 +194,6 @@ int main(int argc, char **argv)
 
   fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
 
-  // TODO: Need to setup the message queue
-  // TODO: After msgqueue setup need to test using one child proc
-  // TODO: Clarify the structure of the PCB for a child
-
-
-
-
 
   // TEST MESSAGE - - - -
   buf.mtype = 1;
@@ -209,9 +202,6 @@ int main(int argc, char **argv)
 
   if (msgsnd(msgid, &buf, len+1, 0) == -1)
     perror("msgsnd:");
-
-
-
 
 
   
@@ -223,25 +213,35 @@ int main(int argc, char **argv)
   sprintf(strclocknanoid, "%d", clocknanoid); 
 
 
-  if ((childpid = fork()) < 0)
+
+  int j; // TODO: remove this var and the for loop after testing
+
+  for (j = 0; j < 5; j++) 
   {
-    perror("fork failed");
-    exit(1);
+    if ((childpid = fork()) < 0)
+    {
+      perror("fork failed");
+      exit(1);
+    }
+
+    // Child Code
+    if (childpid == 0)
+    {
+      execl("./user_proc", strclocksecid, strclocknanoid, '\0');
+      perror("Child failed to execl");
+      exit(1);
+    }
+
+    // Parent Code
+    wait(NULL);
+
+    if (msgsnd(msgid, &buf, len+1, 0) == -1)
+      perror("msgsnd:");
+
+    *clocksec += 1;
+    printf("%i: Clock Seconds: %d\n", j, *clocksec);
   }
 
-  // Child Code
-  if (childpid == 0)
-  {
-    execl("./user_proc", strclocksecid, strclocknanoid, '\0');
-    perror("Child failed to execl");
-    exit(1);
-  }
-
-  // Parent Code
-  printf("Hello from parent!\n");
-
-
-  wait(NULL);
 
 
   /*
