@@ -191,8 +191,8 @@ int main(int argc, char **argv)
   printf("nano delay: %u\n", delaynano);
   printf("sec delay: %u\n", delaysec);
 
-
-  fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
+  // TESTING: example of how to write to file
+  //fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
 
 
   // TEST MESSAGE - - - -
@@ -223,6 +223,10 @@ int main(int argc, char **argv)
       perror("fork failed");
       exit(1);
     }
+
+    // Write to logfile
+    fprintf(logptr, "OSS: Generating process with PID %d and putting it in queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
+
 
     // Child Code
     if (childpid == 0)
