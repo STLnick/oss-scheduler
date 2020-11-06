@@ -1,4 +1,4 @@
-TARGETS = oss user
+TARGETS = oss user_proc
 CC = gcc
 CFLAGS  = -g -Wall -std=c99
 
