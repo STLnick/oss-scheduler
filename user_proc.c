@@ -91,8 +91,12 @@ int main (int argc, char **argv)
   //         2) Ran for whole time quantam (move down level in queues)
   //         3) Ran for PART of time quantam (put in blocked queue)
 
+  unsigned int exectime = 100000;
+  char strexectime[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
+  sprintf(strexectime, "%u", exectime); 
+
   buf.mtype = 99;
-  strcpy(buf.mtext, "child msg");
+  strcpy(buf.mtext, strexectime);
   len = strlen(buf.mtext);
 
   if (msgsnd(msgid, &buf, len+1, 0) == -1)
