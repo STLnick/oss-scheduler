@@ -248,34 +248,44 @@ int main(int argc, char **argv)
    
     scheduleprocess(&buf, &len, msgid, dispatchtime, childpid, clocksec, clocknano, logptr);
 
-    // Store time ran from child  --> TODO: Will need to restructure to include 'x 10000' where x = terminate, ran all, ran some now blocked
-    unsigned int exectime = (unsigned int) atoi(buf.mtext);
+    // Store time ran from child
+    unsigned int exectime;
 
-    // TODO: Take info on if child did (1), (2), or (3) as exit
-
-
-    // Apply that childs time quantam - or part used - to shared clock
-    *clocknano += exectime;
-
-    // Write to logfile
-    fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
-
-    // IF the process ran for its total time quantam
-    if (exectime == tq)
+    // IF < 0 = Process terminating
+    if (atoi(buf.mtext) < 0)
     {
-      // TODO: Dynamically determine queue number moving into
-      fprintf(logptr, "OSS: Putting process with PID %d into Queue 2\n", childpid, exectime);
+      exectime = (unsigned int) abs(atoi(buf.mtext));
+      
+      // Apply used time quantam to shared clock
+      *clocknano += exectime;
+
+      // Write to logfile
+      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
+      fprintf(logptr, "OSS: [Process with PID %d is terminating]\n", childpid);
+
     }
-    // IF the process got blocked during execution
-    else if (exectime != tq)
-    {
-      fprintf(logptr, "OSS: NOT using its entire time quantam\n");
-      fprintf(logptr, "OSS: Putting process with PID %d into the Blocked Queue\n", childpid);
-    }
-    // IF the process terminated
     else
     {
-      // TODO: Process Terminated Logic (maybe use a neg number and take abs value to indicate it terminated and still get tq_used
+      exectime = (unsigned int) atoi(buf.mtext);
+      
+      // Apply used time quantam to shared clock
+      *clocknano += exectime;
+
+      // Write to logfile
+      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
+
+      // IF the process ran for its total time quantam
+      if (exectime == tq)
+      {
+        // TODO: Dynamically determine queue number moving into
+        fprintf(logptr, "OSS: Putting process with PID %d into Queue 2\n", childpid);
+      }
+      // IF the process got blocked during execution
+      else
+      {
+        fprintf(logptr, "OSS: NOT using its entire time quantam\n");
+        fprintf(logptr, "OSS: Putting process with PID %d into the Blocked Queue\n", childpid);
+      }
     }
   }
   /***** END FOR LOOP *****/

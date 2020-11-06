@@ -23,8 +23,8 @@ int main (int argc, char **argv)
 {
   printf("::Begin:: Child Process\n");
 
-  unsigned int tq;      // Time Quantam allowed by scheduler
-  unsigned int tq_used; // Portion of Time Quantam used in sec/nanosec
+  int tq;      // Time Quantam allowed by scheduler
+  int tq_used; // Portion of Time Quantam used in sec/nanosec
 
   int *clocknano;                  // Shared memory segment for clock nanoseconds
   int clocknanoid = atoi(argv[1]); // ID for shared memory clock nanoseconds segment
@@ -81,7 +81,7 @@ int main (int argc, char **argv)
   }
 
   // Extract time quantam sent from message sent by 'scheduler'
-  tq = (unsigned int) atoi(buf.mtext);
+  tq = (int) atoi(buf.mtext);
 
 
 
@@ -108,9 +108,8 @@ int main (int argc, char **argv)
 
   if (randnum > 0 && randnum <= 5)
   {
-    // TODO: TERMINATE
-    printf("terminate...\n");
-    tq_used = 0;
+    // TERMINATE: ran for partial time now stopping
+    tq_used = -(rand() % tq);
   }
   else if (randnum > 5 && randnum <= 25)
   {
@@ -130,7 +129,7 @@ int main (int argc, char **argv)
 
   // Convert time quantam used to a string
   char strtq_used[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
-  sprintf(strtq_used, "%u", tq_used); 
+  sprintf(strtq_used, "%d", tq_used); 
 
   // Setup message to send
   buf.mtype = 99;
