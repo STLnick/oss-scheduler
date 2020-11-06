@@ -13,6 +13,7 @@
 
 #define MAX_TIME_BETWEEN_PROCS_NS 500000000
 #define MAX_TIME_BETWEEN_PROCS_SEC 1
+#define PERMS 0664
 
 int detachandremove(int shmid, void *shmaddr);
 void displayhelpinfo();
@@ -35,11 +36,14 @@ struct pcb {
 
 int main(int argc, char **argv)
 {
+  int childpid; // Holds PID after fork
+
   /* 0 = Available, 1 = Taken */
   int bitvector[18] = { 0 }; // Array used to track which PID / PCBs are taken in shared memory
 
   FILE *logptr; // File pointer for logfile
 
+  int len;            // Holds length of mtext to use in msgsnd invocation
   struct msgbuf buf;  // Struct used for message queue
   int msgid;          // ID for allocated message queue
   key_t msgkey;       // Key to use in creation of message queue
@@ -51,12 +55,12 @@ int main(int argc, char **argv)
   int shmpcbsid;       // ID for shared memory PCBs
   key_t shmpcbskey;    // Key to use in creation of PCBs shared memory
 
-  int *clocknano;     // Shared memory clock nanoseconds
-  int clocknanoid;    // ID for shared memory clock nanoseconds
-  key_t clocknanokey; // Key to use in creation of nanoseconds shared memory
-  int *clocksec;      // Shared memory clock seconds
-  int clocksecid;     // ID for shared memory clock seconds
-  key_t clockseckey;  // Key to use in creation of seconds shared memory
+  unsigned int *clocknano; // Shared memory clock nanoseconds
+  int clocknanoid;         // ID for shared memory clock nanoseconds
+  key_t clocknanokey;      // Key to use in creation of nanoseconds shared memory
+  unsigned int *clocksec;  // Shared memory clock seconds
+  int clocksecid;          // ID for shared memory clock seconds
+  key_t clockseckey;       // Key to use in creation of seconds shared memory
 
   int opt; // Used to parse command line options
 
@@ -151,14 +155,6 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  buf.mtype = 1;
-  strcpy(buf.mtext, "testing");
-  len = strlen(buf.mtext);
-
-  // TEST MESSAGE - - - -
-  if (msgsnd(msgid, &buf, len+1, 0) == -1)
-    perror("msgsnd:");
-  
 
 
 
@@ -201,6 +197,91 @@ int main(int argc, char **argv)
   // TODO: Need to setup the message queue
   // TODO: After msgqueue setup need to test using one child proc
   // TODO: Clarify the structure of the PCB for a child
+
+
+
+
+
+  // TEST MESSAGE - - - -
+  buf.mtype = 1;
+  strcpy(buf.mtext, "testing");
+  len = strlen(buf.mtext);
+
+  if (msgsnd(msgid, &buf, len+1, 0) == -1)
+    perror("msgsnd:");
+
+
+
+
+
+  
+  // Create strings from IDs for exec-ing children
+  char strclocksecid[100+1] = {'\0'}; // Create string from shared memory clock seconds id
+  sprintf(strclocksecid, "%d", clocksecid); 
+
+  char strclocknanoid[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
+  sprintf(strclocknanoid, "%d", clocknanoid); 
+
+
+  if ((childpid = fork()) < 0)
+  {
+    perror("fork failed");
+    exit(1);
+  }
+
+  // Child Code
+  if (childpid == 0)
+  {
+    execl("./user_proc", strclocksecid, strclocknanoid, '\0');
+    perror("Child failed to execl");
+    exit(1);
+  }
+
+  // Parent Code
+  printf("Hello from parent!\n");
+
+
+  wait(NULL);
+
+
+  /*
+ *  EXAMPLE FROM PROJECT 1 ON PROPER LOOP TO LIMIT CHILDREN AND WAIT
+ *
+  while(fgets(buf, 32, stdin))
+  {
+    pid = fork();
+   
+    pr_count++; // Increment number of child processes running
+
+    // If fork failed
+    if (pid < 0)
+    {
+      perror("Fork failed - ");
+      exit(1);
+    }
+
+    char *args[3];
+    createargs(args, buf);
+   
+    // Child process
+    if (pid == 0)
+    {
+      execv(args[0], args);
+      perror("Child failed to exec command!");
+    }
+
+    // Parent process
+    if (pr_count == pr_limit)
+    {
+      wait(&status);
+      pr_count--;
+      printf("Parent waited for child...\n");
+    }
+  }
+  */
+
+
+
 
 
 
