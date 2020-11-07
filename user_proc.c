@@ -14,9 +14,19 @@ int detach(int shmid, void *shmaddr);
 
 #define PERMS 0644
 
+/* Message Queue structure */
 struct msgbuf {
   long mtype;
   char mtext[100];
+};
+
+/* Process Control Block structure */
+struct pcb {
+  int cputime;    // Time on CPU
+  int systemtime; // Time in system
+  int recenttime; // Time used in recent burst
+  int pid;        // Process ID
+  int priority;   // Process priorty (0 = real-time process / 1 = user-process)
 };
 
 int main (int argc, char **argv)
@@ -36,6 +46,9 @@ int main (int argc, char **argv)
   int msgid;         // ID for message queue
   key_t msgkey;      // Key for message queue
 
+  struct pcb *shmpcbs; // Array to store PCBs in shared memory
+  int shmpcbsid;       // ID for shared memory PCBs
+  key_t shmpcbskey;    // Key to use in creation of PCBs shared memory
 
   // TODO: Generate random number to 'choose' outcome:
   //         1. Terminate - send msg with time ran before terminating
@@ -59,7 +72,7 @@ int main (int argc, char **argv)
   }
 
 
-  /* * SHARED MEMORY * */
+  /* * SHARED MEMORY CLOCK * */
   if ((clocksec = (int *) shmat(clocksecid, NULL, 0)) == (void *) -1)
   {
     perror("Failed to attach to memory segment.");
@@ -69,6 +82,28 @@ int main (int argc, char **argv)
   if ((clocknano = (int *) shmat(clocknanoid, NULL, 0)) == (void *) -1)
   {
     perror("Failed to attach to memory segment.");
+    return 1;
+  }
+
+
+  /* * SHARED MEMORY PCB ARRAY * */
+  if ((shmpcbskey = ftok("keys.txt", 'D')) == -1)
+  {
+    perror("ftok");
+    exit(1);
+  }
+
+  if ((shmpcbsid = shmget(shmpcbskey, sizeof(struct pcb) * 18, IPC_CREAT | 0660)) == -1)
+  {
+    perror("Failed to create shared memory segment.");
+    return 1;
+  }
+
+  if ((shmpcbs = (struct pcb *) shmat(shmpcbsid, NULL, 0)) == (void *) - 1)
+  {
+    perror("Failed to attach shared memory segment.");
+    if (shmctl(clocksecid, IPC_RMID, NULL) == -1)
+      perror("Failed to remove memory segment.");
     return 1;
   }
 
@@ -147,6 +182,7 @@ int main (int argc, char **argv)
   // Detach from all shared memory segments
   detach(clocksecid, clocksec);
   detach(clocknanoid, clocknano);
+  detach(shmpcbsid, shmpcbs);
 
   printf("::END:: Child Process\n");
 
