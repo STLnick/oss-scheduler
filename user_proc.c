@@ -36,6 +36,8 @@ int main (int argc, char **argv)
   int tq;      // Time Quantam allowed by scheduler
   int tq_used; // Portion of Time Quantam used in sec/nanosec
 
+  int pcbindex = atoi(argv[2]); // Index of PCB for process in shared memory array
+
   int *clocknano;                  // Shared memory segment for clock nanoseconds
   int clocknanoid = atoi(argv[1]); // ID for shared memory clock nanoseconds segment
   int *clocksec;                   // Shared memory segment for clock seconds
@@ -46,9 +48,8 @@ int main (int argc, char **argv)
   int msgid;         // ID for message queue
   key_t msgkey;      // Key for message queue
 
-  struct pcb *shmpcbs; // Array to store PCBs in shared memory
-  int shmpcbsid;       // ID for shared memory PCBs
-  key_t shmpcbskey;    // Key to use in creation of PCBs shared memory
+  struct pcb *shmpcbs;          // Array to store PCBs in shared memory
+  int shmpcbsid = atoi(argv[3]); // ID for shared memory PCBs
 
   // TODO: Generate random number to 'choose' outcome:
   //         1. Terminate - send msg with time ran before terminating
@@ -87,29 +88,23 @@ int main (int argc, char **argv)
 
 
   /* * SHARED MEMORY PCB ARRAY * */
-  if ((shmpcbskey = ftok("keys.txt", 'D')) == -1)
-  {
-    perror("ftok");
-    exit(1);
-  }
-
-  if ((shmpcbsid = shmget(shmpcbskey, sizeof(struct pcb) * 18, IPC_CREAT | 0660)) == -1)
-  {
-    perror("Failed to create shared memory segment.");
-    return 1;
-  }
-
   if ((shmpcbs = (struct pcb *) shmat(shmpcbsid, NULL, 0)) == (void *) - 1)
   {
     perror("Failed to attach shared memory segment.");
-    if (shmctl(clocksecid, IPC_RMID, NULL) == -1)
+    if (shmctl(shmpcbsid, IPC_RMID, NULL) == -1)
       perror("Failed to remove memory segment.");
     return 1;
   }
 
+  int loop = 2;
+
+  /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+  /* * * * *                     MAIN LOOP                       * * * * */
+  /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+  while (loop != 0) { // TESTING WITH A SIMPLE VARIABLE
 
   // RECEIVE message from the queue
-  if(msgrcv(msgid, &buf, sizeof(buf.mtext), 1, 0) == -1)
+  if(msgrcv(msgid, &buf, sizeof(buf.mtext), pcbindex, 0) == -1)
   {
     perror("user.c - msgrcv");
     exit(1);
@@ -120,26 +115,17 @@ int main (int argc, char **argv)
 
 
 
-  // Send message
-  // TODO: Make this message tell ./oss if 
-  //         1) Terminating
-  //         2) Ran for whole time quantam (move down level in queues)
-  //         3) Ran for PART of time quantam (put in blocked queue)
 
 
-
-  // 0-5 = terminate
-  // 6-25 = ran for partial tq (blocked now)
-  // 26-99 = ran for FULL tq
+  /* 0-5 = terminate
+   * 6-25 = ran for partial tq (blocked now)
+   * 26-99 = ran for FULL tq
+  */ 
 
   // Seed random number generator
   srand((unsigned int) getpid());
 
-  // May need to provide a seed somehow to ensure different rands from processes.....  
   int randnum = rand() % 100;
-  
-  // TESTING
-  printf("%d randnum: %d\n", getpid(), randnum);
 
   if (randnum > 0 && randnum <= 5)
   {
@@ -166,6 +152,14 @@ int main (int argc, char **argv)
   char strtq_used[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
   sprintf(strtq_used, "%d", tq_used); 
 
+
+  // Send message
+  // TODO: Make this message tell ./oss if 
+  //         1) Terminating
+  //         2) Ran for whole time quantam (move down level in queues)
+  //         3) Ran for PART of time quantam (put in blocked queue)
+
+
   // Setup message to send
   buf.mtype = 99;
   strcpy(buf.mtext, strtq_used);
@@ -174,6 +168,14 @@ int main (int argc, char **argv)
   // SEND message
   if (msgsnd(msgid, &buf, len+1, 0) == -1)
     perror("msgsnd:");
+
+    --loop;
+  } // END of tester while loop
+
+
+  /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+  /* * * * *                     END MAIN LOOP                   * * * * */
+  /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 
 

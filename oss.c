@@ -27,7 +27,6 @@ struct pcb {
   int systemtime; // Time in system
   int recenttime; // Time used in recent burst
   int pid;        // Process ID
-  int priority;   // Process priorty (0 = real-time process / 1 = user-process)
 };
 
 int detachandremove(int shmid, void *shmaddr);
@@ -176,7 +175,7 @@ int main(int argc, char **argv)
   if ((shmpcbs = (struct pcb *) shmat(shmpcbsid, NULL, 0)) == (void *) - 1)
   {
     perror("Failed to attach shared memory segment.");
-    if (shmctl(clocksecid, IPC_RMID, NULL) == -1)
+    if (shmctl(shmpcbsid, IPC_RMID, NULL) == -1)
       perror("Failed to remove memory segment.");
     return 1;
   }
@@ -186,11 +185,7 @@ int main(int argc, char **argv)
   // shmpcbs[0].systemtime = 1000;
 
   // TESTING GENERATION OF RANDOM DELAY
-  printf("nano delay: %u\n", delaynano);
-  printf("sec delay: %u\n", delaysec);
   generaterandomtime(&delaynano, &delaysec, MAX_TIME_BETWEEN_PROCS_NS, MAX_TIME_BETWEEN_PROCS_SEC);
-  printf("nano delay: %u\n", delaynano);
-  printf("sec delay: %u\n", delaysec);
 
   // TESTING: example of how to write to file
   //fprintf(logptr, "nano delay: %u || sec delay: %u\n", delaynano, delaysec);
@@ -204,6 +199,8 @@ int main(int argc, char **argv)
   char strclocknanoid[100+1] = {'\0'}; // Create string from shared memory clock nanoseconds id
   sprintf(strclocknanoid, "%d", clocknanoid); 
 
+  char strshmpcbsid[100+1] = {'\0'}; // Create string from shared memory PCB array id
+  sprintf(strshmpcbsid, "%d", shmpcbsid); 
 
 
 
@@ -215,9 +212,9 @@ int main(int argc, char **argv)
   int j; // TODO: remove this var and the for loop after testing
   unsigned int dispatchtime = 2500; // TODO: Change this to be a random value NOT HARD CODED
   unsigned int tq = 50000;          // The time a 'scheduled' process may run at max -- TODO: Change this to be a random value NOT HARD CODED
+  char strpid[100+1] = { '\0' };
 
-
-  for (j = 0; j < 5; j++) 
+  for (j = 1; j <= 5; j++) 
   {
     if ((childpid = fork()) < 0)
     {
@@ -225,12 +222,15 @@ int main(int argc, char **argv)
       exit(1);
     }
 
-
+    bitvector[j] = 1;   // Set flag that a process is at index of shared array
+    shmpcbs[j].pid = j; // Set PCBs PID
+    
+    sprintf(strpid, "%d", j); // Convert pid to string
 
     /* * *   Child Code   * * */
     if (childpid == 0)
     {
-      execl("./user_proc", strclocksecid, strclocknanoid, '\0');
+      execl("./user_proc", strclocksecid, strclocknanoid, strpid, strshmpcbsid, '\0');
       perror("Child failed to execl");
       exit(1);
     }
@@ -238,20 +238,68 @@ int main(int argc, char **argv)
 
     /* * *   Parent Code   * * */
 
-    // Write to logfile
     fprintf(logptr, "OSS: Generating process with PID %d and putting it in Queue 1 at time %u:%u\n", childpid, *clocksec, *clocknano);
+
  
     // TODO: Determine if the random time for next process spawn has passed by tracking shared clock
     // TODO: IF SO -- fork() a new process, new PCB, etc -- ELSE (continue)
 
-
    
-    scheduleprocess(&buf, &len, msgid, dispatchtime, childpid, clocksec, clocknano, logptr);
+    scheduleprocess(&buf, &len, msgid, dispatchtime, j, clocksec, clocknano, logptr);
+
+    unsigned int exectime; // Store time ran from child
+
+    // Child Process terminating
+    if (atoi(buf.mtext) < 0)
+    {
+      exectime = (unsigned int) abs(atoi(buf.mtext));
+      
+      // Apply used time quantam to shared clock
+      *clocknano += exectime;
+
+      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", j, exectime);
+      fprintf(logptr, "OSS: [Process with PID %d is terminating]\n", j);
+
+    }
+    // Child not terminating
+    else
+    {
+      exectime = (unsigned int) atoi(buf.mtext);
+      
+      // Apply used time quantam to shared clock
+      *clocknano += exectime;
+
+      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", j, exectime);
+
+      // IF the process ran for its total time quantam
+      if (exectime == tq)
+      {
+        // TODO: Dynamically determine queue number moving into
+        fprintf(logptr, "OSS: Putting process with PID %d into Queue 2\n", j);
+      }
+      // IF the process got blocked during execution
+      else
+      {
+        fprintf(logptr, "OSS: NOT using its entire time quantam\n");
+        fprintf(logptr, "OSS: Putting process with PID %d into the Blocked Queue\n", j);
+      }
+    }
+  }
+  /***** END FOR LOOP *****/
+
+  /*** TESTING A FOR LOOP - TESTING IF PROCESS TERMINATES AFTER TWO CYCLES OF SND & RCV ***/
+
+  /*
+    * j serves as the childpid
+  */
+  for (j = 1; j <= 5; j++)
+  {
+    scheduleprocess(&buf, &len, msgid, dispatchtime, j, clocksec, clocknano, logptr);
 
     // Store time ran from child
     unsigned int exectime;
 
-    // IF < 0 = Process terminating
+    // Child Process terminating
     if (atoi(buf.mtext) < 0)
     {
       exectime = (unsigned int) abs(atoi(buf.mtext));
@@ -260,10 +308,11 @@ int main(int argc, char **argv)
       *clocknano += exectime;
 
       // Write to logfile
-      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
-      fprintf(logptr, "OSS: [Process with PID %d is terminating]\n", childpid);
+      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", j, exectime);
+      fprintf(logptr, "OSS: [Process with PID %d is terminating]\n", j);
 
     }
+    // Child not terminating
     else
     {
       exectime = (unsigned int) atoi(buf.mtext);
@@ -272,23 +321,22 @@ int main(int argc, char **argv)
       *clocknano += exectime;
 
       // Write to logfile
-      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", childpid, exectime);
+      fprintf(logptr, "OSS: Receiving that process with PID %d ran for %u nanoseconds\n", j, exectime);
 
       // IF the process ran for its total time quantam
       if (exectime == tq)
       {
         // TODO: Dynamically determine queue number moving into
-        fprintf(logptr, "OSS: Putting process with PID %d into Queue 2\n", childpid);
+        fprintf(logptr, "OSS: Putting process with PID %d into Queue 2\n", j);
       }
       // IF the process got blocked during execution
       else
       {
         fprintf(logptr, "OSS: NOT using its entire time quantam\n");
-        fprintf(logptr, "OSS: Putting process with PID %d into the Blocked Queue\n", childpid);
+        fprintf(logptr, "OSS: Putting process with PID %d into the Blocked Queue\n", j);
       }
     }
   }
-  /***** END FOR LOOP *****/
 
 
   /*
@@ -416,7 +464,7 @@ void scheduleprocess(struct msgbuf *buf, int *len, int msgid, unsigned int dispa
   // TODO: Create string from random time quantam to use in msg queue
 
   // Setup message
-  buf->mtype = 1;  // TODO: Make the mtype represent which PID/process to send msg to out of bitvector
+  buf->mtype = childpid;  // TODO: Make the mtype represent which PID/process to send msg to out of bitvector
   strcpy(buf->mtext, "50000");
   *len = strlen(buf->mtext);
 
