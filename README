@@ -6,25 +6,105 @@ GitHub repo: https://github.com/STLnick/oss-scheduler
 
 
 To run the program:
-First run 'make' to build 'oss' and 'user'
+First run 'make' to build 'oss' and 'user_proc'
 
 Run command example:
+./oss
 
-Program options:
-
-
-Default value information:
-
+* NO options are used in execution.
+* Use -h to get a basic description of the program
 
 What Works:
-
+- OSS 'schedules' a process through the message queue
+- All logging messages are written at proper times
+- Shared clock is incremented properly and used in logging messages
+- Setup the shared memory for PCB array
 
 What Doesn't Work:
-
-
-Uncertainties:
+- Signal handling
+- Termination criteria -> just runs a hard coded loop, doesn't take into account 3 seconds elapsed or number of processes ran
+- Queues -> logging messages mention queues but were never actually setup
+- Multi-level feedback queue structure as a whole
+- No statistics logged
+- Not using the setup PCB array to track statistics
 
 
 Commit Log:
 (All commits also on GitHub: https://github.com/STLnick/oss-scheduler)
 
+Commits on Nov 6, 2020
+
+Finish last logging message for process terminating
+nicholas ray committed 3 days ago
+
+Commits on Nov 5, 2020
+
+✨ Receive child message and use to determine process outcome
+nicholas ray committed 3 days ago
+
+✨ Generate random number to determine scheduled process outcome
+nicholas ray committed 3 days ago
+
+🚧 Add more logging, grab time executed by child from msg, increment c…lock with that time
+nicholas ray committed 3 days ago
+
+🚧 Send a hard coded time executed from child in msg
+nicholas ray committed 3 days ago
+
+🚧 Add more logging and a test dispatch time increment
+nicholas ray committed 3 days ago
+
+🚧 Specify message type on msgsnd and msgrcv for identification
+nicholas ray committed 3 days ago
+
+🎨 Abstract out the 'scheduling' action to a function
+nicholas ray committed 3 days ago
+
+🚧 Write message to logfile in parent loop on child spawning
+nicholas ray committed 3 days ago
+
+💩 Increment clock from child with fixed value
+nicholas ray committed 3 days ago
+
+🔥 Removed multiple testing printf statements
+nicholas ray committed 3 days ago
+
+🚧 Setup basic for loop to test increment of clock by parent
+nicholas ray committed 3 days ago
+
+🚧 Add necessary variables for shared memory and message queue
+nicholas ray committed 3 days ago
+
+🐛 Solvee segfault due to grabbing wrong argv values
+nicholas ray committed 3 days ago
+
+🎨 Rename user to user_proc to match project pdf
+nicholas ray committed 3 days ago
+
+Commits on Oct 28, 2020
+
+🚧 Setup messsage queue with a test messagee
+nicholas ray committed 11 days ago
+
+Commits on Oct 27, 2020
+
+💡 Add TODO comments to guide next steps
+nicholas ray committed 12 days ago
+
+🚧 Open and test write to a file for logfile
+nicholas ray committed 12 days ago
+
+✨ Generate a random number given limits
+nicholas ray committed 12 days ago
+
+🚧 Allocate and attach to shared memory for PCBs
+nicholas ray committed 12 days ago
+
+✨ Setup keys, ids, and attach to shared clock segments
+nicholas ray committed 12 days ago
+
+🚸 Add help message, function to detach and remove shared memory, and …shm variables
+nicholas ray committed 12 days ago
+
+🎉 Initial commit
+nicholas ray committed 12 days ago
